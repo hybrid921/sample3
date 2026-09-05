@@ -1,0 +1,1657 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FADE&CO — Barber Management System</title>
+<meta name="description" content="Sistem Manajemen BarberShop — reservasi, ulasan, dan dasbor admin.">
+
+<!-- ============================================================
+     FADE&CO Barber Management System — Standalone HTML Demo
+     One file, no server. Data tersimpan di localStorage browser.
+     Tema: hitam transparan (glass) + kuning emas.
+     ============================================================ -->
+
+<style>
+:root{
+  --bg:oklch(0.16 0.006 70);--fg:oklch(0.97 0.01 80);
+  --card:oklch(0.21 0.008 70 / 0.72);--border:oklch(0.3 0.02 75 / 0.55);
+  --muted:oklch(0.72 0.02 80);--primary:oklch(0.88 0.17 90);--primary-fg:oklch(0.18 0.02 70);
+  --emerald:oklch(0.7 0.15 145);--rose:oklch(0.65 0.2 25);
+  --amber-t:amber-300;--font:'Space Grotesk',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  --r:0.85rem;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;overflow-x:hidden}
+body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:hidden;max-width:100vw}
+.bg-grid{position:fixed;inset:0;z-index:-2;
+  background-image:linear-gradient(to right,oklch(0.3 0.02 75 / 0.07) 1px,transparent 1px),linear-gradient(to bottom,oklch(0.3 0.02 75 / 0.07) 1px,transparent 1px);
+  background-size:44px 44px}
+.bg-glow{position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(circle at 18% 0%,oklch(0.85 0.17 90 / 0.16),transparent 42%),radial-gradient(circle at 82% 8%,oklch(0.7 0.15 60 / 0.1),transparent 38%)}
+.glass{background:var(--card);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);border:1px solid var(--border);border-radius:calc(var(--r)+6px)}
+.container{max-width:1200px;width:100%;margin:0 auto;padding:0 1rem;min-width:0}
+@media(min-width:640px){.container{padding:0 1.5rem}}
+@media(min-width:1024px){.container{padding:0 2rem}}
+.font-display{font-family:var(--font);font-weight:700;letter-spacing:-0.01em}
+
+/* Layout shell */
+.app{display:flex;flex-direction:column;min-height:100vh;min-width:0;max-width:100vw;overflow-x:hidden}
+header.nav{position:sticky;top:0;z-index:40;border-bottom:1px solid var(--border);background:oklch(0.16 0.006 70 / 0.6);backdrop-filter:blur(20px)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:4rem}
+.brand{display:flex;align-items:center;gap:0.625rem}
+.brand-logo{width:2.25rem;height:2.25rem;border-radius:0.75rem;background:var(--primary);color:var(--primary-fg);display:grid;place-items:center;font-size:1.1rem;font-weight:800;box-shadow:0 0 24px -6px var(--primary)}
+.brand-name{font-size:1.1rem;font-weight:700;letter-spacing:-0.01em}
+.brand-name b{color:var(--primary)}
+.brand-sub{font-size:0.625rem;font-weight:500;text-transform:uppercase;letter-spacing:0.22em;color:var(--muted)}
+.nav-links{display:none;gap:1.75rem;font-size:0.875rem;color:var(--muted)}
+@media(min-width:768px){.nav-links{display:flex}}
+.nav-links a{color:inherit;text-decoration:none;transition:color .15s}
+.nav-links a:hover{color:var(--fg)}
+.nav-actions{display:flex;gap:0.5rem;align-items:center}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:0.5rem;white-space:nowrap;border-radius:0.5rem;font-size:0.875rem;font-weight:500;padding:0.5rem 1rem;border:1px solid transparent;cursor:pointer;transition:all .15s;outline:none;font-family:inherit}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-default{background:var(--primary);color:var(--primary-fg)}
+.btn-default:hover{background:oklch(0.85 0.17 90 / 0.9)}
+.btn-outline{background:transparent;border-color:var(--border);color:var(--fg)}
+.btn-outline:hover{background:oklch(0.3 0.02 75 / 0.3)}
+.btn-ghost{background:transparent;color:var(--muted)}
+.btn-ghost:hover{color:var(--fg);background:oklch(0.3 0.02 75 / 0.3)}
+.btn-lg{height:3rem;padding:0 1.75rem;font-size:1rem}
+.btn-sm{height:2rem;padding:0 0.75rem;font-size:0.8rem}
+.btn-icon{width:2rem;height:2rem;padding:0}
+.btn svg{width:1rem;height:1rem;flex-shrink:0}
+
+/* Badge / pill */
+.badge{display:inline-flex;align-items:center;gap:0.375rem;border-radius:9999px;padding:0.125rem 0.625rem;font-size:0.6875rem;font-weight:600;border:1px solid transparent}
+.pill-avail{background:oklch(0.7 0.15 145 / 0.15);color:oklch(0.8 0.15 145);border-color:oklch(0.7 0.15 145 / 0.3)}
+.pill-booked{background:oklch(0.65 0.2 25 / 0.15);color:oklch(0.8 0.2 25);border-color:oklch(0.65 0.2 25 / 0.3)}
+.pill-primary{background:oklch(0.88 0.17 90 / 0.15);color:var(--primary);border-color:oklch(0.88 0.17 90 / 0.3)}
+.dot{width:0.375rem;height:0.375rem;border-radius:9999px;display:inline-block}
+.dot-green{background:#4ade80}.dot-red{background:#f87171}
+.pulse{position:relative}
+.pulse::after{content:'';position:absolute;inset:0;border-radius:inherit;background:inherit;animation:ping 2s cubic-bezier(0,0,.2,1) infinite}
+@keyframes ping{75%,100%{transform:scale(2.2);opacity:0}}
+
+/* Hero */
+.hero{padding:4rem 0}
+@media(min-width:640px){.hero{padding:6rem 0}}
+.hero-badge{display:inline-flex;align-items:center;gap:0.375rem;border:1px solid oklch(0.88 0.17 90 / 0.3);background:oklch(0.88 0.17 90 / 0.1);color:var(--primary);padding:0.25rem 0.625rem;border-radius:9999px;font-size:0.75rem;margin-bottom:1.25rem}
+.hero h1{font-size:3rem;font-weight:700;line-height:1.05;letter-spacing:-0.02em}
+@media(min-width:640px){.hero h1{font-size:3.75rem}}
+@media(min-width:1024px){.hero h1{font-size:4.5rem}}
+.hero h1 .grad{background:linear-gradient(90deg,var(--primary),#fcd34d,var(--primary));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{margin-top:1.5rem;max-width:36rem;font-size:1.0625rem;color:var(--muted)}
+.hero-actions{margin-top:2rem;display:flex;flex-wrap:wrap;gap:0.75rem}
+.hero-stats{margin-top:3rem;display:grid;grid-template-columns:repeat(2,1fr);gap:0.75rem;max-width:42rem}
+@media(min-width:640px){.hero-stats{grid-template-columns:repeat(4,1fr)}}
+.stat{display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem}
+.stat-ico{width:2.25rem;height:2.25rem;border-radius:0.5rem;display:grid;place-items:center;background:oklch(0.88 0.17 90 / 0.15);color:var(--primary);flex-shrink:0}
+.stat-ico.accent{background:var(--primary);color:var(--primary-fg)}
+.stat-val{font-size:1.125rem;font-weight:700;line-height:1}
+.stat-lbl{font-size:0.6875rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-top:0.125rem}
+
+/* Marquee */
+.marquee{overflow:hidden;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:oklch(0.21 0.008 70 / 0.3);padding:0.75rem 0;width:100%;max-width:100%;position:relative;contain:layout style paint}
+.marquee-track{display:flex;width:max-content;gap:2rem;animation:marquee 28s linear infinite;padding-left:1rem}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.marquee-item{display:flex;align-items:center;gap:0.75rem;font-size:0.875rem;font-weight:500;text-transform:uppercase;letter-spacing:0.18em;color:var(--muted);white-space:nowrap}
+.marquee-item svg{color:var(--primary);width:0.875rem;height:0.875rem}
+
+/* Section heading */
+.section{padding:4rem 0;scroll-margin-top:5rem}
+.section-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:0.75rem;margin-bottom:2rem}
+.section-eyebrow{display:flex;align-items:center;gap:0.5rem;font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.15em;color:var(--primary);margin-bottom:0.5rem}
+.section-eyebrow svg{width:0.875rem;height:0.875rem}
+.section-title{font-size:1.875rem;font-weight:700;letter-spacing:-0.02em}
+@media(min-width:640px){.section-title{font-size:2.25rem}}
+.section-desc{margin-top:0.5rem;font-size:0.875rem;color:var(--muted)}
+
+/* Barber grid */
+.grid-barbers{display:grid;grid-template-columns:1fr;gap:1.25rem}
+@media(min-width:640px){.grid-barbers{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1024px){.grid-barbers{grid-template-columns:repeat(3,1fr)}}
+.barber-card{padding:1.25rem;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}
+.barber-card:hover{transform:translateY(-4px);box-shadow:0 0 0 1px oklch(0.88 0.17 90 / 0.3)}
+.barber-top{display:flex;align-items:flex-start;justify-content:space-between;position:relative}
+.barber-id-block{display:flex;align-items:center;gap:0.75rem;cursor:pointer;background:none;border:none;color:inherit;text-align:left;font-family:inherit;padding:0}
+.barber-avatar{width:3rem;height:3rem;border-radius:0.75rem;display:grid;place-items:center;font-weight:700;font-size:0.9375rem}
+.av-amber{background:linear-gradient(135deg,oklch(0.7 0.15 60 / 0.3),oklch(0.55 0.12 60 / 0.1));color:#fcd34d}
+.av-rose{background:linear-gradient(135deg,oklch(0.7 0.18 15 / 0.3),oklch(0.55 0.15 15 / 0.1));color:#fda4af}
+.av-emerald{background:linear-gradient(135deg,oklch(0.7 0.15 145 / 0.3),oklch(0.55 0.12 145 / 0.1));color:#6ee7b7}
+.av-sky{background:linear-gradient(135deg,oklch(0.7 0.15 230 / 0.3),oklch(0.55 0.12 230 / 0.1));color:#7dd3fc}
+.av-violet{background:linear-gradient(135deg,oklch(0.7 0.15 300 / 0.3),oklch(0.55 0.12 300 / 0.1));color:#c4b5fd}
+.barber-num{font-size:0.625rem;font-weight:700;color:var(--muted)}
+.barber-name{font-weight:600;font-size:1rem;line-height:1.1}
+.barber-type{font-size:0.75rem;font-weight:500}
+.t-master{color:#fcd34d}.t-senior{color:#6ee7b7}.t-junior{color:#7dd3fc}
+.barber-rating{display:flex;align-items:center;gap:0.25rem;margin-top:0.125rem;font-size:0.6875rem}
+.barber-rating svg{width:0.75rem;height:0.75rem;fill:var(--primary);color:var(--primary)}
+.barber-rating .count{color:var(--muted)}
+.barber-bottom{display:flex;align-items:flex-end;justify-content:space-between;margin-top:1.25rem;position:relative}
+.tarif-lbl{font-size:0.625rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted)}
+.tarif-val{font-size:1.5rem;font-weight:700;color:var(--primary)}
+.see-reviews{margin-top:0.25rem;font-size:0.6875rem;color:var(--muted);background:none;border:none;cursor:pointer;text-align:left;padding:0;font-family:inherit;text-decoration:underline;text-underline-offset:2px}
+.see-reviews:hover{color:var(--primary)}
+
+/* How it works */
+.how-grid{display:grid;grid-template-columns:1fr;gap:1.25rem}
+@media(min-width:768px){.how-grid{grid-template-columns:repeat(3,1fr)}}
+.how-card{padding:1.5rem;position:relative;overflow:hidden}
+.how-step{position:absolute;right:-0.5rem;top:-0.5rem;font-size:4.5rem;font-weight:700;color:oklch(0.88 0.17 90 / 0.1);line-height:1}
+.how-ico{width:2.75rem;height:2.75rem;border-radius:0.75rem;display:grid;place-items:center;background:oklch(0.88 0.17 90 / 0.15);color:var(--primary);margin-bottom:1rem}
+.how-ico svg{width:1.25rem;height:1.25rem}
+.how-title{font-weight:600;font-size:1.125rem;margin-bottom:0.375rem}
+.how-desc{font-size:0.875rem;color:var(--muted)}
+
+/* Pricing */
+.price-grid{display:grid;grid-template-columns:1fr;gap:0.75rem}
+@media(min-width:640px){.price-grid{grid-template-columns:repeat(3,1fr)}}
+.price-card{padding:1.5rem;position:relative;display:flex;flex-direction:column}
+.price-card.featured{box-shadow:0 0 0 1px oklch(0.88 0.17 90 / 0.4)}
+.price-pop{position:absolute;top:-0.75rem;left:1.5rem;background:var(--primary);color:var(--primary-fg);font-size:0.6875rem;padding:0.125rem 0.5rem;border-radius:0.375rem;font-weight:600}
+.price-tier{font-size:0.875rem;font-weight:600}
+.price-val{font-size:1.875rem;font-weight:700;margin-top:0.25rem}
+.price-desc{font-size:0.875rem;color:var(--muted);margin-top:0.25rem}
+.price-features{margin-top:1.25rem;list-style:none;display:flex;flex-direction:column;gap:0.625rem;font-size:0.875rem}
+.price-features li{display:flex;align-items:center;gap:0.5rem}
+.price-features svg{width:1rem;height:1rem;color:var(--primary);flex-shrink:0}
+
+/* Testimonial */
+.testimonial{padding:2rem;position:relative;overflow:hidden}
+@media(min-width:640px){.testimonial{padding:3rem}}
+.testimonial .quote-ico{position:absolute;left:-0.5rem;top:-0.5rem;width:6rem;height:6rem;color:oklch(0.88 0.17 90 / 0.1)}
+.testimonial .stars{display:flex;gap:0.125rem;margin-bottom:0.75rem}
+.testimonial .stars svg{width:1rem;height:1rem;fill:var(--primary);color:var(--primary)}
+.testimonial p{font-size:1.25rem;font-weight:500;line-height:1.5;max-width:42rem}
+@media(min-width:640px){.testimonial p{font-size:1.5rem}}
+.testimonial-author{display:flex;align-items:center;gap:0.75rem;margin-top:1.25rem}
+.testimonial-avatar{width:2.5rem;height:2.5rem;border-radius:9999px;background:oklch(0.88 0.17 90 / 0.2);display:grid;place-items:center;font-weight:700;color:var(--primary)}
+.testimonial-name{font-size:0.875rem;font-weight:600}
+.testimonial-meta{font-size:0.75rem;color:var(--muted)}
+
+/* Lookup section */
+.lookup{padding:2rem;position:relative;overflow:hidden}
+@media(min-width:640px){.lookup{padding:2.5rem}}
+.lookup .glow{position:absolute;right:-2.5rem;top:-2.5rem;width:10rem;height:10rem;border-radius:9999px;background:oklch(0.88 0.17 90 / 0.15);filter:blur(3rem);pointer-events:none}
+.lookup-form{margin-top:1.5rem;display:flex;flex-direction:column;gap:0.5rem}
+@media(min-width:640px){.lookup-form{flex-direction:row}}
+.lookup-input-wrap{position:relative;flex:1}
+.lookup-input-wrap svg{position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);width:1rem;height:1rem;color:var(--muted)}
+.lookup-input{width:100%;height:2.5rem;padding:0 0.75rem 0 2.25rem;background:var(--card);border:1px solid var(--border);border-radius:0.5rem;color:var(--fg);font-family:inherit;font-size:0.875rem;outline:none}
+.lookup-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px oklch(0.88 0.17 90 / 0.2)}
+.lookup-result{margin-top:1.25rem;border:1px solid var(--border);border-radius:1rem;overflow:hidden;background:oklch(0.21 0.008 70 / 0.4)}
+.lookup-head{display:flex;align-items:center;justify-content:space-between;gap:0.75rem;padding:1rem;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.lookup-id{font-family:monospace;font-size:1.125rem;font-weight:700;color:var(--primary)}
+.lookup-grid{display:grid;grid-template-columns:1fr;gap:0.75rem;padding:1rem}
+@media(min-width:640px){.lookup-grid{grid-template-columns:repeat(2,1fr)}}
+.lookup-field{padding:0.625rem 0.75rem;border:1px solid var(--border);border-radius:0.5rem;background:oklch(0.16 0.006 70 / 0.3)}
+.lookup-field-lbl{display:flex;align-items:center;gap:0.375rem;font-size:0.625rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted)}
+.lookup-field-lbl svg{width:0.875rem;height:0.875rem}
+.lookup-field-val{margin-top:0.125rem;font-size:0.875rem;font-weight:500}
+.lookup-foot{display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:1rem;border-top:1px solid var(--border);background:oklch(0.16 0.006 70 / 0.3);flex-wrap:wrap}
+.lookup-foot small{font-size:0.6875rem;color:var(--muted)}
+
+/* Footer */
+footer{margin-top:auto;border-top:1px solid var(--border);background:oklch(0.21 0.008 70 / 0.3);backdrop-filter:blur(10px)}
+.footer-inner{display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:1rem;padding:2rem 0}
+@media(min-width:640px){.footer-inner{flex-direction:row}}
+.footer-meta{display:flex;gap:1rem;font-size:0.75rem;color:var(--muted);flex-wrap:wrap;justify-content:center}
+.footer-meta span{display:flex;align-items:center;gap:0.375rem}
+.footer-meta svg{width:0.875rem;height:0.875rem}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:oklch(0 0 0 / 0.7);backdrop-filter:blur(4px);z-index:100;display:none;align-items:center;justify-content:center;padding:1rem}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:1rem;max-width:28rem;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5)}
+.modal-hero{padding:1.5rem 1.5rem 1rem;background:linear-gradient(135deg,oklch(0.88 0.17 90 / 0.15),transparent);border-bottom:1px solid var(--border)}
+.modal-head{display:flex;align-items:center;gap:0.75rem}
+.modal-ico{width:2.75rem;height:2.75rem;border-radius:0.75rem;background:var(--primary);color:var(--primary-fg);display:grid;place-items:center;flex-shrink:0}
+.modal-ico svg{width:1.25rem;height:1.25rem}
+.modal-title{font-size:1.25rem;font-weight:700}
+.modal-sub{font-size:0.75rem;color:var(--muted)}
+.modal-body{padding:1.5rem}
+.modal-foot{display:flex;gap:0.5rem;padding:0 1.5rem 1.5rem;justify-content:space-between;flex-wrap:wrap}
+.modal-close{position:absolute;top:0.75rem;right:0.75rem;width:2rem;height:2rem;border-radius:0.5rem;background:transparent;border:none;color:var(--muted);cursor:pointer;display:grid;place-items:center}
+.modal-close:hover{color:var(--fg);background:oklch(0.3 0.02 75 / 0.3)}
+.modal-close svg{width:1rem;height:1rem}
+.modal{position:relative}
+
+/* Form */
+.field{margin-bottom:1rem}
+.field-grid{display:grid;grid-template-columns:1fr;gap:1rem}
+@media(min-width:640px){.field-grid{grid-template-columns:1fr 1fr}}
+.field label{display:block;font-size:0.75rem;color:var(--muted);margin-bottom:0.375rem;font-weight:500}
+.field label.icon-lbl{display:flex;align-items:center;gap:0.375rem}
+.field label svg{width:0.875rem;height:0.875rem}
+.field input,.field textarea,.field select{width:100%;background:oklch(0.16 0.006 70 / 0.5);border:1px solid var(--border);border-radius:0.5rem;color:var(--fg);font-family:inherit;font-size:0.875rem;padding:0.5rem 0.75rem;outline:none}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--primary);box-shadow:0 0 0 3px oklch(0.88 0.17 90 / 0.2)}
+.field textarea{resize:vertical;min-height:4.5rem}
+.field .hint{font-size:0.6875rem;color:var(--muted);margin-top:0.25rem;text-align:right}
+
+/* Booking context box */
+.ctx-box{margin-bottom:1rem;border:1px solid var(--border);border-radius:0.75rem;background:oklch(0.21 0.008 70 / 0.4);padding:0.75rem;font-size:0.875rem}
+.ctx-row{display:flex;align-items:center;justify-content:space-between;gap:0.5rem}
+.ctx-id{font-family:monospace;font-size:0.75rem;font-weight:600;color:var(--primary)}
+
+/* Star picker */
+.stars-picker{display:flex;gap:0.25rem;align-items:center}
+.stars-picker button{background:none;border:none;padding:0.25rem;cursor:pointer;border-radius:0.375rem;transition:transform .1s}
+.stars-picker button:hover{transform:scale(1.15)}
+.stars-picker svg{width:2rem;height:2rem;transition:color .15s,fill .15s}
+.stars-picker svg.empty{color:oklch(0.5 0 0 / 0.4);fill:transparent}
+.stars-picker svg.filled{color:var(--primary);fill:var(--primary)}
+.stars-picker .rating-val{margin-left:0.5rem;font-weight:700;color:var(--primary);font-size:0.875rem}
+
+/* Review list */
+.reviews-list{margin-top:0.5rem;max-height:48vh;overflow-y:auto;padding-right:0.25rem}
+.review-item{border:1px solid var(--border);border-radius:0.75rem;background:oklch(0.21 0.008 70 / 0.4);padding:0.75rem;margin-bottom:0.5rem}
+.review-top{display:flex;align-items:center;justify-content:space-between;gap:0.5rem}
+.review-author{display:flex;align-items:center;gap:0.5rem}
+.review-avatar{width:2rem;height:2rem;border-radius:9999px;background:oklch(0.88 0.17 90 / 0.15);display:grid;place-items:center;font-size:0.75rem;font-weight:700;color:var(--primary)}
+.review-name{font-size:0.875rem;font-weight:600}
+.review-date{font-size:0.6875rem;color:var(--muted)}
+.review-stars{display:flex;gap:0.125rem}
+.review-stars svg{width:0.875rem;height:0.875rem;fill:var(--primary);color:var(--primary)}
+.review-comment{margin-top:0.5rem;font-size:0.875rem;color:oklch(0.97 0.01 80 / 0.9);line-height:1.5}
+
+/* Toast */
+.toasts{position:fixed;top:1rem;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:0.5rem;width:calc(100% - 2rem);max-width:24rem;pointer-events:none}
+.toast{padding:0.75rem 1rem;border-radius:0.5rem;font-size:0.875rem;font-weight:500;box-shadow:0 10px 25px -5px rgba(0,0,0,0.4);animation:toast-in .3s ease;pointer-events:auto}
+.toast-success{background:oklch(0.7 0.15 145 / 0.95);color:#052e16}
+.toast-error{background:oklch(0.65 0.2 25 / 0.95);color:#450a0a}
+.toast-info{background:oklch(0.88 0.17 90 / 0.95);color:oklch(0.18 0.02 70)}
+@keyframes toast-in{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+
+/* Admin gate */
+.admin-gate{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:1rem}
+.admin-gate-card{max-width:28rem;width:100%;padding:2rem;text-align:center}
+.admin-gate-ico{margin:0 auto 1.25rem;width:3.5rem;height:3.5rem;border-radius:1rem;background:var(--primary);color:var(--primary-fg);display:grid;place-items:center;box-shadow:0 0 28px -6px var(--primary)}
+.admin-gate-ico svg{width:1.75rem;height:1.75rem}
+
+/* Admin layout */
+.admin-shell{display:flex;min-height:100vh}
+.sidebar{width:230px;flex-shrink:0;border-right:1px solid var(--border);background:oklch(0.14 0.006 70 / 0.85);backdrop-filter:blur(20px);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.sidebar-head{height:4rem;display:flex;align-items:center;border-bottom:1px solid var(--border);padding:0 1rem}
+.sidebar-nav{flex:1;overflow-y:auto;padding:0.75rem}
+.sidebar-section-lbl{padding:0.25rem 0.5rem 0.5rem;font-size:0.625rem;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted)}
+.nav-item{display:flex;align-items:center;gap:0.75rem;width:100%;padding:0.5rem 0.75rem;border-radius:0.5rem;background:none;border:none;color:var(--muted);font-family:inherit;font-size:0.875rem;font-weight:500;cursor:pointer;text-align:left;margin-bottom:0.25rem;transition:all .15s}
+.nav-item:hover{background:oklch(0.3 0.02 75 / 0.3);color:var(--fg)}
+.nav-item.active{background:var(--primary);color:var(--primary-fg);box-shadow:0 0 20px -6px var(--primary)}
+.nav-item svg{width:1rem;height:1rem;flex-shrink:0}
+.sidebar-foot{border-top:1px solid var(--border);padding:0.75rem}
+.admin-badge{display:flex;align-items:center;gap:0.625rem;border:1px solid var(--border);border-radius:0.5rem;background:oklch(0.21 0.008 70 / 0.4);padding:0.5rem 0.75rem;margin-bottom:0.5rem}
+.admin-badge-ico{width:2rem;height:2rem;border-radius:9999px;background:var(--primary);color:var(--primary-fg);display:grid;place-items:center;flex-shrink:0}
+.admin-badge-ico svg{width:1rem;height:1rem}
+.admin-badge-lbl{font-size:0.6875rem;color:var(--muted)}
+.admin-badge-email{font-size:0.75rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sidebar-foot-row{display:flex;align-items:center;justify-content:space-between;gap:0.5rem}
+
+.admin-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.admin-topbar{display:none;border-bottom:1px solid var(--border);background:oklch(0.16 0.006 70 / 0.7);backdrop-filter:blur(20px)}
+@media(max-width:767px){.admin-topbar{display:block}}
+.admin-topbar-row{height:3.5rem;display:flex;align-items:center;justify-content:space-between;padding:0 1rem}
+.admin-topbar-tabs{display:flex;gap:0.25rem;padding:0 0.75rem 0.5rem;overflow-x:auto}
+.admin-topbar-tabs .nav-item{font-size:0.75rem;padding:0.375rem 0.75rem}
+.admin-content{flex:1;overflow-y:auto;padding:1rem}
+@media(min-width:640px){.admin-content{padding:1.5rem}}
+@media(min-width:1024px){.admin-content{padding:2rem}}
+.admin-content-inner{max-width:72rem;margin:0 auto}
+.admin-foot{margin-top:auto;border-top:1px solid var(--border);background:oklch(0.21 0.008 70 / 0.2);padding:1rem 1.5rem;display:flex;justify-content:space-between;font-size:0.75rem;color:var(--muted);flex-wrap:wrap;gap:0.5rem}
+
+.admin-h1{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em}
+.admin-h1-sub{font-size:0.875rem;color:var(--muted);margin-top:0.125rem}
+.admin-head-row{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:0.75rem;margin-bottom:1.5rem}
+.admin-head-actions{display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap}
+
+/* Stat cards (admin) */
+.stat-grid{display:grid;grid-template-columns:1fr;gap:1rem;margin-bottom:1.5rem}
+@media(min-width:640px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1280px){.stat-grid{grid-template-columns:repeat(4,1fr)}}
+.stat-card{padding:1.25rem;position:relative;overflow:hidden}
+.stat-card-glow{position:absolute;right:-1rem;top:-1rem;width:5rem;height:5rem;border-radius:9999px;opacity:.5;filter:blur(1rem)}
+.stat-card-ico{width:2.5rem;height:2.5rem;border-radius:0.75rem;display:grid;place-items:center;margin-bottom:1rem}
+.stat-card-ico svg{width:1.25rem;height:1.25rem}
+.stat-card-lbl{font-size:0.6875rem;font-weight:500;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted)}
+.stat-card-val{font-size:1.5rem;font-weight:700;margin-top:0.25rem}
+
+/* Filter tabs */
+.filter-tabs{display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1.5rem}
+.filter-tab{display:inline-flex;align-items:center;gap:0.5rem;border:1px solid var(--border);background:oklch(0.21 0.008 70 / 0.4);color:var(--muted);border-radius:9999px;padding:0.375rem 0.875rem;font-size:0.875rem;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s}
+.filter-tab:hover{color:var(--fg)}
+.filter-tab.active{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.filter-tab .count{background:oklch(0 0 0 / 0.2);padding:0.0625rem 0.375rem;border-radius:9999px;font-size:0.625rem;font-weight:700}
+.filter-tab.active .count{background:oklch(0 0 0 / 0.2)}
+
+/* Admin table */
+.admin-table-wrap{overflow:hidden;border-radius:1rem}
+.admin-table-scroll{max-height:60vh;overflow:auto}
+table.admin-table{width:100%;border-collapse:collapse;font-size:0.875rem}
+table.admin-table thead{position:sticky;top:0;background:oklch(0.21 0.008 70 / 0.8);backdrop-filter:blur(10px);z-index:1}
+table.admin-table th{border-bottom:1px solid var(--border);padding:0.75rem 1rem;text-align:left;font-size:0.6875rem;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;color:var(--muted)}
+table.admin-table td{border-bottom:1px solid oklch(0.3 0.02 75 / 0.3);padding:0.75rem 1rem;vertical-align:top}
+table.admin-table tr:hover td{background:oklch(0.21 0.008 70 / 0.3)}
+table.admin-table th:last-child,table.admin-table td:last-child{text-align:right}
+table.admin-table th:nth-last-child(2),table.admin-table td:nth-last-child(2){text-align:center}
+.mono-id{font-family:monospace;font-size:0.75rem;font-weight:600;color:var(--primary)}
+.cell-main{font-weight:500}
+.cell-sub{font-size:0.75rem;color:var(--muted)}
+.cell-price{font-weight:600;color:var(--primary);text-align:right}
+.actions-cell{display:flex;gap:0.25rem;justify-content:flex-end}
+
+/* Mobile cards (admin) */
+.admin-cards{display:flex;flex-direction:column;gap:0.75rem}
+@media(min-width:768px){.admin-cards{display:none}}
+.admin-card{padding:1rem}
+.admin-card-top{display:flex;justify-content:space-between;gap:0.75rem;align-items:flex-start}
+
+/* Hidden helpers */
+.hidden{display:none!important}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* Empty state */
+.empty-state{padding:2.5rem;text-align:center;color:var(--muted);font-size:0.875rem}
+.empty-state svg{width:2rem;height:2rem;margin:0 auto 0.75rem;color:oklch(0.88 0.17 90 / 0.4)}
+
+/* Color select */
+.color-grid{display:flex;gap:0.5rem}
+.color-opt{width:2rem;height:2rem;border-radius:0.5rem;border:none;cursor:pointer}
+.color-opt.selected{box-shadow:0 0 0 2px var(--primary),0 0 0 4px var(--bg)}
+
+/* Custom scrollbar */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:oklch(0.4 0.04 85 / 0.5);border-radius:9999px}
+::-webkit-scrollbar-thumb:hover{background:oklch(0.6 0.12 88 / 0.7)}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+<div id="app" class="app"></div>
+<div id="modal-root"></div>
+<div id="toast-root" class="toasts"></div>
+
+<script>
+/* ============================================================
+   FADE&CO BMS — Standalone Demo (localStorage as DB)
+   ============================================================ */
+
+const STORAGE_KEY = "fadeandco_bms_v1";
+
+// ---- Demo seed data ----
+const SEED_BARBERS = [
+  {id:"b1",number:1,name:"Rangga Pratama",type:"Master Barber",price:85000,status:"Available",avatarColor:"amber"},
+  {id:"b2",number:2,name:"Dimas Surya",type:"Senior Barber",price:65000,status:"Available",avatarColor:"rose"},
+  {id:"b3",number:3,name:"Bagas Maulana",type:"Senior Barber",price:65000,status:"Booked",avatarColor:"emerald"},
+  {id:"b4",number:4,name:"Fauzan Rizki",type:"Junior Barber",price:45000,status:"Available",avatarColor:"sky"},
+  {id:"b5",number:5,name:"Yoga Permana",type:"Junior Barber",price:45000,status:"Available",avatarColor:"violet"},
+  {id:"b6",number:6,name:"Arif Hidayat",type:"Master Barber",price:85000,status:"Booked",avatarColor:"amber"},
+];
+const SEED_GUESTS = [
+  {id:"g1",name:"Andi Wijaya",email:"andi@example.com",phone:"081234567890",createdAt:Date.now()-86400000},
+  {id:"g2",name:"Budi Santoso",email:"budi@example.com",phone:"081298765432",createdAt:Date.now()-86400000},
+];
+const SEED_BOOKINGS = [
+  {id:"bk1",reservationId:"BMS-7F3K9X",guestId:"g1",barbermanId:"b3",totalCost:65000,status:"Confirmed",schedule:Date.now()+36*3600000,notes:"Fade medium, low skin taper",createdAt:Date.now()-86400000},
+  {id:"bk2",reservationId:"BMS-2H8L4M",guestId:"g2",barbermanId:"b6",totalCost:85000,status:"Confirmed",schedule:Date.now()+48*3600000,notes:"Pompadour + beard line up",createdAt:Date.now()-86400000},
+];
+const SEED_REVIEWS = [
+  {id:"r1",bookingId:"bk2",guestId:"g2",barbermanId:"b6",rating:5,comment:"Master Arif paham banget gaya yang aku mau. Pompadour-nya rapi sempurna!",createdAt:Date.now()-43200000},
+  {id:"r2",bookingId:"bk1",guestId:"g1",barbermanId:"b3",rating:4,comment:"Bagas ramah dan teliti. Fade medium-nya pas, recommended.",createdAt:Date.now()-21600000},
+];
+
+const ADMIN_EMAIL = "admin@fadeco.com";
+const ADMIN_PASSWORD = "admin123";
+
+// ---- State ----
+let state = loadState();
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  // First run — seed demo data
+  const s = {
+    barbers: SEED_BARBERS,
+    guests: SEED_GUESTS,
+    bookings: SEED_BOOKINGS,
+    reviews: SEED_REVIEWS,
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+  return s;
+}
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+function resetData() {
+  if (confirm("Reset semua data ke demo awal? Data lokal Anda akan hilang.")) {
+    localStorage.removeItem(STORAGE_KEY);
+    state = loadState();
+    toast("Data direset ke demo awal", "info");
+    render();
+  }
+}
+
+// ---- Helpers ----
+const pad = n => String(n).padStart(2, "0");
+function initials(name) {
+  return name.split(" ").slice(0, 2).map(w => w[0] || "").join("").toUpperCase();
+}
+function formatIDR(v) {
+  return new Intl.NumberFormat("id-ID", {style:"currency",currency:"IDR",minimumFractionDigits:0,maximumFractionDigits:0}).format(v);
+}
+function formatSchedule(ts) {
+  const d = new Date(ts);
+  return new Intl.DateTimeFormat("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}).format(d);
+}
+function genId(prefix = "BMS-") {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for (let i = 0; i < 6; i++) out += chars[Math.floor(Math.random()*chars.length)];
+  return prefix + out;
+}
+function tierClass(type) {
+  if (type === "Master Barber") return "t-master";
+  if (type === "Senior Barber") return "t-senior";
+  return "t-junior";
+}
+function tierLabel(type) {
+  return type.replace(" Barber", "");
+}
+function avatarClass(color) {
+  return "av-" + (color || "amber");
+}
+function avgRating(barberId) {
+  const rs = state.reviews.filter(r => r.barbermanId === barberId);
+  if (rs.length === 0) return {avg:0, count:0};
+  const sum = rs.reduce((s, r) => s + r.rating, 0);
+  return {avg: Math.round((sum/rs.length)*10)/10, count: rs.length};
+}
+function globalRating() {
+  if (state.reviews.length === 0) return {avg:0, total:0};
+  const sum = state.reviews.reduce((s,r)=>s+r.rating,0);
+  return {avg: Math.round((sum/state.reviews.length)*10)/10, total: state.reviews.length};
+}
+function stats() {
+  const confirmed = state.bookings.filter(b => b.status === "Confirmed");
+  const revenue = confirmed.reduce((s,b)=>s+b.totalCost,0);
+  return {
+    totalBookings: state.bookings.length,
+    confirmed: confirmed.length,
+    canceled: state.bookings.filter(b => b.status === "Canceled").length,
+    totalBarbers: state.barbers.length,
+    availableBarbers: state.barbers.filter(b => b.status === "Available").length,
+    revenue,
+  };
+}
+
+// ---- Toast ----
+function toast(msg, type = "success") {
+  const root = document.getElementById("toast-root");
+  const el = document.createElement("div");
+  el.className = "toast toast-" + type;
+  el.textContent = msg;
+  root.appendChild(el);
+  setTimeout(() => {
+    el.style.transition = "opacity .3s, transform .3s";
+    el.style.opacity = "0";
+    el.style.transform = "translateY(-10px)";
+    setTimeout(() => el.remove(), 300);
+  }, 3000);
+}
+
+// ---- Icons (inline SVG strings) ----
+const I = {
+  scissors: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>',
+  sparkles: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>',
+  arrowRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>',
+  chevronRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
+  arrowLeft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>',
+  users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  checkCircle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  xCircle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+  calendarClock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7.5h-18"/><path d="M21 12.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7"/><circle cx="16" cy="16" r="6"/><path d="M16 14v2l1 1"/></svg>',
+  star: '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+  wallet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  quote: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2-2-2H4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2-2-2h-4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/></svg>',
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+  calendarCheck: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+  eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
+  receipt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg>',
+  download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  power: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a10 10 0 1 1 0-20 10 10 0 0 1 0 20Z" opacity="0"/><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  shieldCheck: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1Z"/><path d="m9 12 2 2 4-4"/></svg>',
+  mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>',
+  phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>',
+  user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  trendingUp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>',
+  send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
+  messageSquare: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>',
+  save: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>',
+  layoutDashboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>',
+  logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
+  loader: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>',
+};
+
+// ---- App view state ----
+let view = "public"; // "public" | "admin" | "admin-gate"
+let adminSection = "overview";
+let adminAuthed = false;
+// Modal state
+let modal = null; // {type, data}
+
+function openModal(type, data = {}) {
+  modal = { type, data };
+  renderModal();
+}
+function closeModal() {
+  modal = null;
+  renderModal();
+}
+
+function render() {
+  const app = document.getElementById("app");
+  if (view === "admin-gate") {
+    app.innerHTML = renderAdminGate();
+    return;
+  }
+  if (view === "admin" && !adminAuthed) {
+    app.innerHTML = renderAdminGate();
+    return;
+  }
+  if (view === "admin") {
+    app.innerHTML = renderAdmin();
+    bindAdmin();
+    return;
+  }
+  app.innerHTML = renderPublic();
+  bindPublic();
+}
+
+function renderModal() {
+  const root = document.getElementById("modal-root");
+  if (!modal) { root.innerHTML = ""; return; }
+  const overlay = `<div class="modal-overlay open" onclick="if(event.target===this)closeModal()">`;
+  let content = "";
+  if (modal.type === "book") content = renderBookModal(modal.data);
+  else if (modal.type === "barberDetail") content = renderBarberDetailModal(modal.data);
+  else if (modal.type === "review") content = renderReviewModal(modal.data);
+  else if (modal.type === "bookingDetail") content = renderBookingDetailModal(modal.data);
+  else if (modal.type === "addBarber") content = renderAddBarberModal(modal.data);
+  else if (modal.type === "confirmDelete") content = renderConfirmDeleteModal(modal.data);
+  else if (modal.type === "login") content = renderLoginModal(modal.data);
+  root.innerHTML = overlay + content + "</div>";
+  bindModal();
+}
+
+/* ============ PUBLIC VIEW ============ */
+function renderPublic() {
+  const s = stats();
+  const g = globalRating();
+  return `
+  <header class="nav">
+    <div class="container nav-inner">
+      <div class="brand">
+        <div class="brand-logo">✂</div>
+        <div>
+          <div class="brand-name font-display">FADE<b>&</b>CO</div>
+          <div class="brand-sub">Barber System</div>
+        </div>
+      </div>
+      <nav class="nav-links">
+        <a href="#barberman">Barberman</a>
+        <a href="#cara">Cara Kerja</a>
+        <a href="#harga">Harga</a>
+        <a href="#cek-reservasi">Cek Reservasi</a>
+      </nav>
+      <div class="nav-actions">
+        <button class="btn btn-outline btn-sm" onclick="goAdmin()">${I.shieldCheck}Dasbor Admin</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" style="flex:1">
+    <section class="hero">
+      <div class="hero-badge">${I.sparkles}Reservasi Online · Tanpa Antrian</div>
+      <h1 class="font-display">Potong Rambut.<br><span class="grad">Reservasi. Selesai.</span></h1>
+      <p>Pilih barberman favoritmu, jadwalkan sesukamu, duduk manis. Sistem manajemen barber modern untuk anak muda yang gak punya waktu buat nunggu.</p>
+      <div class="hero-actions">
+        <button class="btn btn-default btn-lg" onclick="scrollToId('barberman')">${I.arrowRight}Pilih Barberman</button>
+        <button class="btn btn-outline btn-lg" onclick="scrollToId('harga')">Lihat Daftar Harga</button>
+      </div>
+      <div class="hero-stats">
+        ${renderHeroStat(I.users,"Barberman",s.totalBarbers)}
+        ${renderHeroStat(I.checkCircle,"Tersedia",s.availableBarbers,true)}
+        ${renderHeroStat(I.calendarClock,"Total Reservasi",s.totalBookings)}
+        ${renderHeroStat(I.star,`Rating (${g.total})`,g.total>0?g.avg.toFixed(1):"—",true)}
+      </div>
+    </section>
+
+    <div class="marquee">
+      <div class="marquee-track">
+        ${renderMarqueeItems()}${renderMarqueeItems()}
+      </div>
+    </div>
+
+    <section id="barberman" class="section">
+      <div class="section-head">
+        <div>
+          <div class="section-eyebrow">${I.scissors}Tim Barberman</div>
+          <h2 class="section-title font-display">Pilih kursimu</h2>
+          <p class="section-desc">Harga sudah termasuk konsultasi gaya & styling akhir.</p>
+        </div>
+        <span class="badge pill-primary"><span class="dot dot-green pulse"></span>${s.availableBarbers} kurs tersedia</span>
+      </div>
+      <div class="grid-barbers">
+        ${state.barbers.map((b,i)=>renderBarberCard(b,i)).join("")}
+      </div>
+    </section>
+
+    <section id="cara" class="section">
+      <div style="text-align:center;margin-bottom:2.5rem">
+        <div class="section-eyebrow" style="justify-content:center">Cara Kerja</div>
+        <h2 class="section-title font-display">Tiga langkah, beres</h2>
+      </div>
+      <div class="how-grid">
+        ${renderHowStep("01",I.users,"Pilih Barberman","Lihat profil, tier, dan tarifnya. Hanya yang Available yang bisa dibooking.")}
+        ${renderHowStep("02",I.calendarClock,"Isi Data & Jadwal","Nama, kontak, dan waktu yang kamu mau. Konfirmasi langsung.")}
+        ${renderHowStep("03",I.scissors,"Datang & Potong","Dapatkan ID reservasi. Tunjukkan ke kasir, duduk, santai.")}
+      </div>
+    </section>
+
+    <section id="harga" class="section">
+      <div class="price-grid">
+        ${renderPriceCard("Junior Barber","Untuk potong rapi sehari-hari",["Haircut standar","Cuci rambut","Styling ringan"],false)}
+        ${renderPriceCard("Senior Barber","Pengalaman & referensi gaya luas",["Semua gaya fade","Beard grooming","Konsultasi gaya"],true)}
+        ${renderPriceCard("Master Barber","Spesialis gaya kompleks & event",["Custom design","Coloring consult","Premium service"],false)}
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <div class="glass testimonial">
+        ${I.quote}
+        <div style="position:relative">
+          <div class="stars">${I.star}${I.star}${I.star}${I.star}${I.star}</div>
+          <p class="font-display">"Reservasi pagi, sore udah kelar. Gak perlu nunggu antri, tinggal duduk. Pelayananannya rapi dan barbermannya kece."</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">R</div>
+            <div>
+              <div class="testimonial-name">Rizky Maulana</div>
+              <div class="testimonial-meta">Pelanggan setia sejak 2023</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="cek-reservasi" class="section" style="padding-top:0">
+      <div class="glass lookup">
+        <div class="glow"></div>
+        <div style="position:relative">
+          <div class="section-eyebrow">${I.shieldCheck}Cek Reservasi</div>
+          <h2 class="section-title font-display">Sudah pesan? Cek statusmu</h2>
+          <p class="section-desc">Masukkan ID reservasi (mis. <span class="mono-id">BMS-XXXXXX</span>) untuk melihat detail & beri penilaian.</p>
+          <form class="lookup-form" onsubmit="event.preventDefault();doLookup()">
+            <div class="lookup-input-wrap">${I.search}<input id="lookupInput" class="lookup-input" placeholder="BMS-XXXXXX" style="text-transform:uppercase;font-family:monospace"></div>
+            <button type="submit" class="btn btn-default btn-lg" style="height:2.5rem">${I.arrowRight}Cek Status</button>
+          </form>
+          <div id="lookupResult"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container footer-inner">
+      <div class="brand">
+        <div class="brand-logo">✂</div>
+        <div>
+          <div class="brand-name font-display">FADE<b>&</b>CO</div>
+          <div class="brand-sub">Barber System</div>
+        </div>
+      </div>
+      <p style="font-size:0.75rem;color:var(--muted)">© ${new Date().getFullYear()} FADE&CO · Barber Management System</p>
+      <div class="footer-meta">
+        <span>${I.clock}Buka 09:00–21:00</span>
+        <span>${I.wallet}Tunai & QRIS</span>
+        <button class="btn btn-ghost btn-sm" onclick="resetData()" title="Reset demo data">Reset Data</button>
+      </div>
+    </div>
+  </footer>
+  `;
+}
+
+function renderHeroStat(ico,label,val,accent=false){
+  return `<div class="glass stat"><div class="stat-ico ${accent?"accent":""}">${ico}</div><div><div class="stat-val font-display">${val}</div><div class="stat-lbl">${label}</div></div></div>`;
+}
+function renderMarqueeItems(){
+  const items=["Skin Fade","Pompadour","Buzz Cut","Beard Line Up","Mid Fade","Quiff","Crew Cut","Textured Crop"];
+  return items.map(t=>`<span class="marquee-item">${I.scissors}${t}</span>`).join("");
+}
+function renderBarberCard(b,idx){
+  const r = avgRating(b.id);
+  return `<div class="glass barber-card">
+    <div class="barber-top">
+      <button class="barber-id-block" onclick="openBarberDetail('${b.id}')" aria-label="Lihat profil ${b.name}">
+        <div class="barber-avatar ${avatarClass(b.avatarColor)}">${initials(b.name)}</div>
+        <div>
+          <div class="barber-num">#${pad(b.number)}</div>
+          <div class="barber-name">${b.name}</div>
+          <div class="barber-type ${tierClass(b.type)}">${b.type}</div>
+          ${r.count>0?`<div class="barber-rating">${I.star}<span>${r.avg.toFixed(1)}</span><span class="count">(${r.count})</span></div>`:""}
+        </div>
+      </button>
+      <span class="badge ${b.status==='Available'?'pill-avail':'pill-booked'}"><span class="dot ${b.status==='Available'?'dot-green':'dot-red'}"></span>${b.status}</span>
+    </div>
+    <div class="barber-bottom">
+      <div>
+        <div class="tarif-lbl">Tarif</div>
+        <div class="tarif-val font-display">${formatIDR(b.price)}</div>
+        <button class="see-reviews" onclick="openBarberDetail('${b.id}')">Lihat ulasan →</button>
+      </div>
+      <button class="btn ${b.status==='Available'?'btn-default':'btn-outline'} btn-sm" ${b.status!=='Available'?'disabled':''} onclick="openBook('${b.id}')">
+        ${b.status==='Available'?I.arrowRight+"Book":"Booked"}
+      </button>
+    </div>
+  </div>`;
+}
+function renderHowStep(step,ico,title,desc){
+  return `<div class="glass how-card"><div class="how-step font-display">${step}</div><div class="how-ico">${ico}</div><div class="how-title font-display">${title}</div><div class="how-desc">${desc}</div></div>`;
+}
+function renderPriceCard(tier,desc,features,featured){
+  const sample = state.barbers.find(b=>b.type===tier);
+  return `<div class="glass price-card ${featured?"featured":""}">
+    ${featured?`<span class="price-pop">Populer</span>`:""}
+    <div class="price-tier ${tierClass(tier)}">${tierLabel(tier)}</div>
+    <div class="price-val font-display">${sample?formatIDR(sample.price):"—"}</div>
+    <div class="price-desc">${desc}</div>
+    <ul class="price-features">${features.map(f=>`<li>${I.checkCircle}${f}</li>`).join("")}</ul>
+    <button class="btn ${featured?'btn-default':'btn-outline'}" style="margin-top:1.5rem;width:100%" onclick="scrollToId('barberman')">Pilih ${tierLabel(tier)}</button>
+  </div>`;
+}
+
+/* ============ PUBLIC BIND ============ */
+function bindPublic(){
+  // nothing extra; handlers are inline onclick
+}
+function scrollToId(id){ document.getElementById(id)?.scrollIntoView({behavior:"smooth",block:"start"}); }
+function goAdmin(){
+  if (adminAuthed) { view="admin"; render(); return; }
+  openModal("login",{});
+}
+
+/* ============ BOOK MODAL ============ */
+function openBook(barberId){
+  const b = state.barbers.find(x=>x.id===barberId);
+  if(!b) return;
+  if (b.status!=="Available"){ toast("Barberman sudah dibooking","error"); return; }
+  // default schedule: tomorrow 14:00
+  const d = new Date(); d.setDate(d.getDate()+1); d.setHours(14,0,0,0);
+  openModal("book",{barber:b, schedule: toLocalDT(d)});
+}
+function toLocalDT(d){
+  const pad = n=>String(n).padStart(2,"0");
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function renderBookModal(d){
+  const b = d.barber;
+  return `<div class="modal">
+    <button class="modal-close" onclick="closeModal()">${I.xCircle}</button>
+    <div class="modal-hero">
+      <div class="modal-head">
+        <div class="modal-ico">${I.calendarCheck}</div>
+        <div>
+          <div class="modal-title font-display">Reservasi Potong</div>
+          <div class="modal-sub">Isi data kamu, kami jaga kursinya.</div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:0.75rem;margin-top:0.75rem;padding:0.75rem;border:1px solid var(--border);border-radius:0.75rem;background:oklch(0.21 0.008 70 / 0.4)">
+        <div>
+          <div class="barber-num">No. ${b.number}</div>
+          <div class="barber-name">${b.name}</div>
+          <div class="barber-type ${tierClass(b.type)}">${b.type}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="tarif-lbl">Tarif</div>
+          <div class="font-display" style="font-size:1.125rem;font-weight:700;color:var(--primary)">${formatIDR(b.price)}</div>
+        </div>
+      </div>
+    </div>
+    <form class="modal-body" onsubmit="event.preventDefault();submitBook('${b.id}')">
+      <div class="field-grid">
+        <div class="field"><label>Nama Lengkap</label><input id="bk-name" required placeholder="Nama kamu"></div>
+        <div class="field"><label>No. Telepon</label><input id="bk-phone" required placeholder="08xxxxxxxxxx" inputmode="tel"></div>
+      </div>
+      <div class="field"><label>Email</label><input id="bk-email" type="email" required placeholder="nama@email.com"></div>
+      <div class="field"><label>Jadwal Potong</label><input id="bk-schedule" type="datetime-local" value="${d.schedule}" required></div>
+      <div class="field"><label>Catatan (opsional)</label><textarea id="bk-notes" rows="3" placeholder="Mis. fade medium, skin taper, beard line up…"></textarea></div>
+      <div class="modal-foot" style="padding:0">
+        <button type="button" class="btn btn-ghost" onclick="closeModal()">Batal</button>
+        <button type="submit" class="btn btn-default" style="min-width:10rem">${I.calendarCheck}Konfirmasi Reservasi</button>
+      </div>
+    </form>
+  </div>`;
+}
+function submitBook(barberId){
+  const name=document.getElementById("bk-name").value.trim();
+  const phone=document.getElementById("bk-phone").value.trim();
+  const email=document.getElementById("bk-email").value.trim();
+  const schedule=document.getElementById("bk-schedule").value;
+  const notes=document.getElementById("bk-notes").value.trim();
+  if(!name||!phone||!email||!schedule){toast("Lengkapi semua data","error");return;}
+  const barber=state.barbers.find(b=>b.id===barberId);
+  if(!barber){toast("Barberman tidak ditemukan","error");return;}
+  if(barber.status==="Booked"){toast("Barberman sudah dibooking","error");return;}
+  // find or create guest
+  let guest=state.guests.find(g=>g.email.toLowerCase()===email.toLowerCase());
+  if(!guest){
+    guest={id:"g"+Date.now(),name,email,phone,createdAt:Date.now()};
+    state.guests.push(guest);
+  } else { guest.name=name; guest.phone=phone; }
+  // unique reservation id
+  let rid=genId();
+  while(state.bookings.some(b=>b.reservationId===rid)) rid=genId();
+  const booking={
+    id:"bk"+Date.now(),reservationId:rid,guestId:guest.id,barbermanId:barber.id,
+    totalCost:barber.price,status:"Confirmed",schedule:new Date(schedule).getTime(),
+    notes:notes||null,createdAt:Date.now()
+  };
+  state.bookings.push(booking);
+  barber.status="Booked";
+  saveState();
+  toast("Reservasi berhasil! ID: "+rid,"success");
+  closeModal();
+  render();
+}
+
+/* ============ BARBER DETAIL MODAL (drawer-like) ============ */
+function openBarberDetail(barberId){
+  const b = state.barbers.find(x=>x.id===barberId);
+  if(!b) return;
+  openModal("barberDetail",{barber:b});
+}
+function renderBarberDetailModal(d){
+  const b=d.barber;
+  const r=avgRating(b.id);
+  const reviews=state.reviews.filter(rv=>rv.barbermanId===b.id).sort((a,b)=>b.createdAt-a.createdAt);
+  return `<div class="modal" style="max-width:28rem">
+    <button class="modal-close" onclick="closeModal()">${I.xCircle}</button>
+    <div class="modal-hero" style="background:linear-gradient(135deg,oklch(0.88 0.17 90 / 0.15),transparent)">
+      <div style="display:flex;gap:1rem;align-items:flex-start">
+        <div class="barber-avatar ${avatarClass(b.avatarColor)}" style="width:4rem;height:4rem;font-size:1.25rem;border-radius:1rem">${initials(b.name)}</div>
+        <div style="flex:1;min-width:0">
+          <div class="font-display" style="font-size:1.5rem;font-weight:700">${b.name}</div>
+          <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.25rem">
+            <span class="barber-type ${tierClass(b.type)}" style="font-weight:600">${b.type}</span>
+            <span class="barber-num">#${pad(b.number)}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem">
+            <div style="display:flex;gap:0.125rem">${[1,2,3,4,5].map(n=>`<span style="color:${n<=Math.round(r.avg)?'var(--primary)':'oklch(0.5 0 0 / 0.3)'}">${I.star}</span>`).join("")}</span>
+            <span class="font-display" style="font-weight:700;color:var(--primary);font-size:0.875rem">${r.count>0?r.avg.toFixed(1):"—"}</span>
+            <span class="barber-rating count">(${r.count} ulasan)</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:1rem;padding:0.75rem;border:1px solid var(--border);border-radius:0.75rem;background:oklch(0.21 0.008 70 / 0.4)">
+        <div>
+          <div class="tarif-lbl">Tarif</div>
+          <div class="font-display" style="font-size:1.25rem;font-weight:700;color:var(--primary)">${formatIDR(b.price)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.375rem">
+          <span class="badge ${b.status==='Available'?'pill-avail':'pill-booked'}"><span class="dot ${b.status==='Available'?'dot-green':'dot-red'}"></span>${b.status}</span>
+          <button class="btn btn-sm ${b.status==='Available'?'btn-default':'btn-outline'}" ${b.status!=='Available'?'disabled':''} onclick="closeModal();openBook('${b.id}')">Book ${I.chevronRight}</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-body" style="padding-top:1.25rem">
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem">
+        ${I.quote}<h3 class="font-display" style="font-size:1rem;font-weight:600">Ulasan</h3>
+        ${r.count>0?`<span class="badge pill-primary" style="margin-left:auto">${r.count} ulasan</span>`:""}
+      </div>
+      <div class="reviews-list">
+        ${reviews.length===0?`<div class="empty-state">${I.scissors}Belum ada ulasan untuk barberman ini.</div>`:
+          reviews.map(rv=>{
+            const guest=state.guests.find(g=>g.id===rv.guestId);
+            return `<div class="review-item">
+              <div class="review-top">
+                <div class="review-author">
+                  <div class="review-avatar">${(guest?.name||"?")[0]}</div>
+                  <div>
+                    <div class="review-name">${guest?.name||"Anonim"}</div>
+                    <div class="review-date">${formatSchedule(rv.createdAt)}</div>
+                  </div>
+                </div>
+                <div class="review-stars">${[1,2,3,4,5].map(n=>`<span style="opacity:${n<=rv.rating?1:0.3}">${I.star}</span>`).join("")}</div>
+              </div>
+              ${rv.comment?`<p class="review-comment">"${rv.comment}"</p>`:""}
+            </div>`;
+          }).join("")}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ============ LOOKUP ============ */
+function doLookup(){
+  const id=document.getElementById("lookupInput").value.trim().toUpperCase();
+  const out=document.getElementById("lookupResult");
+  if(!id){out.innerHTML="";return;}
+  const b=state.bookings.find(b=>b.reservationId===id);
+  if(!b){
+    out.innerHTML=`<div class="lookup-result" style="border-color:oklch(0.65 0.2 25 / 0.3);background:oklch(0.65 0.2 25 / 0.05)">
+      <div style="display:flex;align-items:center;gap:0.75rem;padding:1rem;color:oklch(0.8 0.2 25);font-size:0.875rem">
+        ${I.xCircle}ID reservasi tidak ditemukan. Periksa kembali penulisannya.
+      </div></div>`;
+    return;
+  }
+  const barber=state.barbers.find(x=>x.id===b.barbermanId);
+  const guest=state.guests.find(g=>g.id===b.guestId);
+  const confirmed=b.status==="Confirmed";
+  const hasReview=state.reviews.some(r=>r.bookingId===b.id);
+  const guestName=guest?(()=>{const p=guest.name.split(" ");return p.length===1?p[0]:`${p[0]} ${p[p.length-1][0]}.`;})():"—";
+  out.innerHTML=`<div class="lookup-result">
+    <div class="lookup-head">
+      <div>
+        <div class="tarif-lbl">ID Reservasi</div>
+        <div class="lookup-id">${b.reservationId}</div>
+      </div>
+      <span class="badge ${confirmed?'pill-avail':'pill-booked'}">${confirmed?I.checkCircle:I.xCircle}${b.status}</span>
+    </div>
+    <div class="lookup-grid">
+      <div class="lookup-field"><div class="lookup-field-lbl">${I.user}Pelanggan</div><div class="lookup-field-val">${guestName}</div></div>
+      <div class="lookup-field"><div class="lookup-field-lbl">${I.scissors}Barberman</div><div class="lookup-field-val">${barber?.name||"—"} <span class="cell-sub">· ${barber?.type||"—"}</span></div></div>
+      <div class="lookup-field"><div class="lookup-field-lbl">${I.calendarClock}Jadwal</div><div class="lookup-field-val">${formatSchedule(b.schedule)}</div></div>
+      <div class="lookup-field"><div class="lookup-field-lbl">${I.star}Total Biaya</div><div class="lookup-field-val" style="color:var(--primary);font-weight:600">${formatIDR(b.totalCost)}</div></div>
+    </div>
+    <div class="lookup-foot">
+      <small>Dibuat ${formatSchedule(b.createdAt)}</small>
+      ${confirmed?`<button class="btn btn-sm ${hasReview?'btn-outline':'btn-default'}" ${hasReview?'disabled':''} onclick="openReview('${b.id}')">${hasReview?I.star+"Sudah Dinilai":I.star+"Beri Penilaian"}</button>`:""}
+    </div>
+  </div>`;
+}
+
+/* ============ REVIEW MODAL ============ */
+function openReview(bookingId){
+  const b=state.bookings.find(x=>x.id===bookingId);
+  if(!b) return;
+  const barber=state.barbers.find(x=>x.id===b.barbermanId);
+  openModal("review",{booking:b,barber,rating:0,comment:""});
+}
+function renderReviewModal(d){
+  const b=d.booking; const barber=d.barber;
+  return `<div class="modal">
+    <button class="modal-close" onclick="closeModal()">${I.xCircle}</button>
+    <div class="modal-hero">
+      <div class="modal-head">
+        <div class="modal-ico">${I.star}</div>
+        <div>
+          <div class="modal-title font-display">Beri Penilaian</div>
+          <div class="modal-sub">Bagikan pengalamanmu bersama barberman kami.</div>
+        </div>
+      </div>
+      <div class="ctx-box">
+        <div class="ctx-row"><span class="ctx-id">${b.reservationId}</span><span class="cell-sub">${formatSchedule(b.schedule)}</span></div>
+        <div style="display:flex;justify-content:space-between;margin-top:0.375rem"><span class="cell-main">${barber.name}</span><span class="cell-price">${formatIDR(b.totalCost)}</span></div>
+      </div>
+    </div>
+    <form class="modal-body" onsubmit="event.preventDefault();submitReview('${b.id}')">
+      <div class="field">
+        <label>Rating kamu</label>
+        <div class="stars-picker" id="starsPicker">
+          ${[1,2,3,4,5].map(n=>`<button type="button" onclick="setRating(${n})" data-n="${n}"><span class="empty">${I.star}</span></button>`).join("")}
+          <span class="rating-val" id="ratingVal"></span>
+        </div>
+      </div>
+      <div class="field">
+        <label class="icon-lbl">${I.messageSquare}Komentar (opsional)</label>
+        <textarea id="rv-comment" rows="3" maxlength="500" placeholder="Cerita singkat soal potonganmu…"></textarea>
+        <div class="hint"><span id="rv-count">0</span>/500</div>
+      </div>
+      <div class="modal-foot" style="padding:0">
+        <button type="button" class="btn btn-ghost" onclick="closeModal()">Nanti saja</button>
+        <button type="submit" class="btn btn-default" style="min-width:10rem">${I.send}Kirim Ulasan</button>
+      </div>
+    </form>
+  </div>`;
+}
+let currentRating=0;
+function setRating(n){
+  currentRating=n;
+  document.querySelectorAll("#starsPicker button").forEach(btn=>{
+    const nn=+btn.dataset.n;
+    btn.innerHTML = nn<=n ? `<span class="filled">${I.star}</span>` : `<span class="empty">${I.star}</span>`;
+  });
+  document.getElementById("ratingVal").textContent=n+".0";
+}
+function submitReview(bookingId){
+  if(currentRating<1){toast("Pilih jumlah bintang dulu ya","error");return;}
+  const b=state.bookings.find(x=>x.id===bookingId);
+  if(!b){toast("Reservasi tidak ditemukan","error");return;}
+  if(state.reviews.some(r=>r.bookingId===bookingId)){toast("Reservasi ini sudah pernah diulas","error");return;}
+  const comment=document.getElementById("rv-comment").value.trim();
+  state.reviews.push({
+    id:"r"+Date.now(),bookingId,guestId:b.guestId,barbermanId:b.barbermanId,
+    rating:currentRating,comment:comment||null,createdAt:Date.now()
+  });
+  saveState();
+  toast("Terima kasih atas ulasanmu! 🌟","success");
+  closeModal();
+  currentRating=0;
+  // refresh lookup result if open
+  doLookup();
+  render();
+}
+
+/* ============ LOGIN MODAL ============ */
+function renderLoginModal(d){
+  return `<div class="modal">
+    <button class="modal-close" onclick="closeModal();goBack()">${I.xCircle}</button>
+    <div class="modal-hero">
+      <div class="modal-head">
+        <div class="modal-ico">${I.shieldCheck}</div>
+        <div>
+          <div class="modal-title font-display">Masuk ke Dasbor</div>
+          <div class="modal-sub">Akses panel manajemen reservasi & barberman.</div>
+        </div>
+      </div>
+    </div>
+    <form class="modal-body" onsubmit="event.preventDefault();doLogin()">
+      <div class="field"><label>Email Admin</label><input id="lg-email" type="email" value="${ADMIN_EMAIL}" required></div>
+      <div class="field"><label>Password</label><input id="lg-pass" type="password" value="${ADMIN_PASSWORD}" required></div>
+      <div style="border:1px solid oklch(0.88 0.17 90 / 0.2);background:oklch(0.88 0.17 90 / 0.05);border-radius:0.75rem;padding:0.625rem 0.75rem;font-size:0.75rem;color:var(--muted);margin-bottom:1rem">
+        <b style="color:var(--fg)">Demo credentials:</b> ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}
+      </div>
+      <div class="modal-foot" style="padding:0">
+        <button type="button" class="btn btn-ghost" onclick="closeModal();goBack()">Batal</button>
+        <button type="submit" class="btn btn-default" style="min-width:10rem">${I.scissors}Masuk</button>
+      </div>
+    </form>
+  </div>`;
+}
+function doLogin(){
+  const email=document.getElementById("lg-email").value.trim().toLowerCase();
+  const pass=document.getElementById("lg-pass").value;
+  if(email===ADMIN_EMAIL.toLowerCase() && pass===ADMIN_PASSWORD){
+    adminAuthed=true;
+    view="admin";
+    closeModal();
+    toast("Login berhasil. Selamat datang, Admin!","success");
+    render();
+  } else {
+    toast("Email atau password salah","error");
+  }
+}
+function goBack(){ view="public"; render(); }
+function adminLogout(){
+  adminAuthed=false;
+  view="public";
+  toast("Keluar dari dasbor","info");
+  render();
+}
+
+/* ============ ADMIN VIEW ============ */
+function renderAdmin(){
+  const sections=[
+    {id:"overview",label:"Overview",icon:I.layoutDashboard},
+    {id:"bookings",label:"Reservasi",icon:I.calendarCheck},
+    {id:"barbers",label:"Barberman",icon:I.scissors},
+    {id:"guests",label:"Pelanggan",icon:I.users},
+  ];
+  let content="";
+  if(adminSection==="overview") content=renderOverview();
+  else if(adminSection==="bookings") content=renderBookings();
+  else if(adminSection==="barbers") content=renderBarbers();
+  else if(adminSection==="guests") content=renderGuests();
+  return `
+  <div class="admin-shell">
+    <aside class="sidebar">
+      <div class="sidebar-head"><div class="brand"><div class="brand-logo">✂</div><div><div class="brand-name font-display">FADE<b>&</b>CO</div><div class="brand-sub">Barber System</div></div></div></div>
+      <nav class="sidebar-nav">
+        <div class="sidebar-section-lbl">Menu</div>
+        ${sections.map(s=>`<button class="nav-item ${adminSection===s.id?'active':''}" onclick="setSection('${s.id}')">${s.icon}${s.label}</button>`).join("")}
+      </nav>
+      <div class="sidebar-foot">
+        <div class="admin-badge">
+          <div class="admin-badge-ico">${I.scissors}</div>
+          <div style="min-width:0;flex:1"><div class="admin-badge-lbl">Admin</div><div class="admin-badge-email">${ADMIN_EMAIL}</div></div>
+        </div>
+        <div class="sidebar-foot-row">
+          <button class="btn btn-ghost btn-sm" onclick="goBack()">${I.arrowLeft}Ke Situs</button>
+          <button class="btn btn-ghost btn-icon" onclick="adminLogout()" title="Keluar">${I.logout}</button>
+        </div>
+      </div>
+    </aside>
+    <div class="admin-main">
+      <div class="admin-topbar">
+        <div class="admin-topbar-row"><div class="brand"><div class="brand-logo">✂</div></div><button class="btn btn-ghost btn-sm" onclick="goBack()">${I.arrowLeft}Situs</button></div>
+        <div class="admin-topbar-tabs">${sections.map(s=>`<button class="nav-item ${adminSection===s.id?'active':''}" onclick="setSection('${s.id}')">${s.icon}${s.label}</button>`).join("")}</div>
+      </div>
+      <main class="admin-content">
+        <div class="admin-content-inner">${content}</div>
+      </main>
+      <div class="admin-foot"><span>FADE&CO · Barber Management System</span><span>Panel Admin · Demo localStorage</span></div>
+    </div>
+  </div>`;
+}
+function setSection(id){ adminSection=id; render(); }
+function bindAdmin(){ /* inline handlers */ }
+
+function renderOverview(){
+  const s=stats();
+  const recent=state.bookings.slice().sort((a,b)=>b.createdAt-a.createdAt).slice(0,5);
+  const cards=[
+    {label:"Total Reservasi",val:s.totalBookings,ico:I.calendarCheck,tint:"background:linear-gradient(135deg,oklch(0.7 0.15 60 / 0.2),oklch(0.55 0.12 60 / 0.05));color:#fcd34d"},
+    {label:"Dikonfirmasi",val:s.confirmed,ico:I.checkCircle,tint:"background:linear-gradient(135deg,oklch(0.7 0.15 145 / 0.2),oklch(0.55 0.12 145 / 0.05));color:#6ee7b7"},
+    {label:"Dibatalkan",val:s.canceled,ico:I.xCircle,tint:"background:linear-gradient(135deg,oklch(0.65 0.2 25 / 0.2),oklch(0.5 0.15 25 / 0.05));color:#fda4af"},
+    {label:"Pendapatan (Confirmed)",val:formatIDR(s.revenue),ico:I.wallet,tint:"background:linear-gradient(135deg,oklch(0.88 0.17 90 / 0.25),oklch(0.7 0.15 90 / 0.05));color:var(--primary)"},
+  ];
+  return `<div style="margin-bottom:1.5rem">
+    <h1 class="admin-h1">Selamat datang kembali 👋</h1>
+    <div class="admin-h1-sub">Ringkasan aktivitas barbershop kamu hari ini.</div>
+  </div>
+  <div class="stat-grid">
+    ${cards.map(c=>`<div class="glass stat-card"><div class="stat-card-glow" style="${c.tint}"></div><div style="position:relative"><div class="stat-card-ico" style="${c.tint}">${c.ico}</div><div class="stat-card-lbl">${c.label}</div><div class="stat-card-val font-display">${c.val}</div></div></div>`).join("")}
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr;gap:1.5rem" class="overview-grid">
+    <div class="glass" style="padding:1.25rem;grid-column:span 2">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <div style="display:flex;align-items:center;gap:0.5rem">${I.trendingUp}<h2 class="font-display" style="font-size:1rem;font-weight:600">Reservasi Terbaru</h2></div>
+        <button class="btn btn-ghost btn-sm" onclick="setSection('bookings')">Lihat semua ${I.chevronRight}</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.5rem">
+        ${recent.length===0?`<div class="empty-state">${I.calendarCheck}Belum ada reservasi.</div>`:
+        recent.map(b=>{
+          const g=state.guests.find(x=>x.id===b.guestId);
+          const bar=state.barbers.find(x=>x.id===b.barbermanId);
+          return `<div style="display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);border-radius:0.75rem;background:oklch(0.21 0.008 70 / 0.3);padding:0.625rem 0.75rem">
+            <div style="display:flex;align-items:center;gap:0.75rem">
+              <div style="width:2.25rem;height:2.25rem;border-radius:0.5rem;background:oklch(0.88 0.17 90 / 0.15);display:grid;place-items:center;font-weight:700;color:var(--primary);font-size:0.75rem">${(bar?.name||"?")[0]}</div>
+              <div>
+                <div class="cell-main">${g?.name||"—"}</div>
+                <div class="cell-sub">${b.reservationId} · ${bar?.name||"—"}</div>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <div class="cell-price">${formatIDR(b.totalCost)}</div>
+              <div class="cell-sub">${formatSchedule(b.schedule)}</div>
+            </div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>
+    <div class="glass" style="padding:1.25rem">
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem">${I.scissors}<h2 class="font-display" style="font-size:1rem;font-weight:600">Status Barberman</h2></div>
+      <div style="display:flex;flex-direction:column;gap:0.75rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);border-radius:0.75rem;background:oklch(0.21 0.008 70 / 0.3);padding:0.625rem 1rem"><span class="cell-sub">Total Tim</span><span class="font-display" style="font-size:1.125rem;font-weight:700">${s.totalBarbers}</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid oklch(0.7 0.15 145 / 0.2);background:oklch(0.7 0.15 145 / 0.05);border-radius:0.75rem;padding:0.625rem 1rem"><span class="cell-main" style="display:flex;align-items:center;gap:0.5rem"><span class="dot dot-green"></span>Tersedia</span><span class="font-display" style="font-size:1.125rem;font-weight:700;color:#6ee7b7">${s.availableBarbers}</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid oklch(0.65 0.2 25 / 0.2);background:oklch(0.65 0.2 25 / 0.05);border-radius:0.75rem;padding:0.625rem 1rem"><span class="cell-main" style="display:flex;align-items:center;gap:0.5rem"><span class="dot dot-red"></span>Terisi</span><span class="font-display" style="font-size:1.125rem;font-weight:700;color:#fda4af">${s.totalBarbers-s.availableBarbers}</span></div>
+        <button class="btn btn-outline" style="width:100%" onclick="setSection('barbers')">Kelola Barberman ${I.chevronRight}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ============ BOOKINGS ADMIN ============ */
+let bkFilter="all"; let bkQuery="";
+function renderBookings(){
+  const filtered=state.bookings.filter(b=>{
+    if(bkFilter!=="all" && b.status!==bkFilter) return false;
+    if(bkQuery.trim()){
+      const q=bkQuery.toLowerCase();
+      const g=state.guests.find(x=>x.id===b.guestId);
+      const bar=state.barbers.find(x=>x.id===b.barbermanId);
+      return b.reservationId.toLowerCase().includes(q)||g?.name?.toLowerCase().includes(q)||g?.email?.toLowerCase().includes(q)||bar?.name?.toLowerCase().includes(q);
+    }
+    return true;
+  }).sort((a,b)=>b.createdAt-a.createdAt);
+  const counts={all:state.bookings.length,Confirmed:state.bookings.filter(b=>b.status==="Confirmed").length,Canceled:state.bookings.filter(b=>b.status==="Canceled").length};
+  return `<div class="admin-head-row">
+    <div><h1 class="admin-h1">Manajemen Reservasi</h1><div class="admin-h1-sub">Konfirmasi, batalkan, atau hapus reservasi pelanggan.</div></div>
+    <div class="admin-head-actions">
+      <div class="lookup-input-wrap" style="position:relative;width:12rem">${I.search}<input class="lookup-input" placeholder="Cari ID, nama, barber…" oninput="bkQuery=this.value;renderBookingsOnly()" value="${bkQuery}"></div>
+      <button class="btn btn-outline btn-sm" onclick="exportCSV('bookings')">${I.download}<span class="hidden sm:inline">CSV</span></button>
+    </div>
+  </div>
+  <div class="filter-tabs">
+    ${[["all","Semua"],["Confirmed","Confirmed"],["Canceled","Canceled"]].map(([id,label])=>`<button class="filter-tab ${bkFilter===id?'active':''}" onclick="bkFilter='${id}';renderBookingsOnly()">${label}<span class="count">${counts[id]}</span></button>`).join("")}
+  </div>
+  <div class="glass admin-table-wrap hidden md:block" style="display:none" id="desktopTable"></div>
+  <div id="mobileCards" class="admin-cards"></div>`;
+}
+function renderBookingsOnly(){
+  // re-render only the bookings content, keep filter state
+  const filtered=state.bookings.filter(b=>{
+    if(bkFilter!=="all" && b.status!==bkFilter) return false;
+    if(bkQuery.trim()){
+      const q=bkQuery.toLowerCase();
+      const g=state.guests.find(x=>x.id===b.guestId);
+      const bar=state.barbers.find(x=>x.id===b.barbermanId);
+      return b.reservationId.toLowerCase().includes(q)||g?.name?.toLowerCase().includes(q)||bar?.name?.toLowerCase().includes(q);
+    }
+    return true;
+  }).sort((a,b)=>b.createdAt-a.createdAt);
+
+  // desktop table
+  const dt=document.getElementById("desktopTable");
+  if(dt){
+    dt.style.display = window.innerWidth>=768 ? "block":"none";
+    dt.innerHTML=`<div class="admin-table-scroll">
+      <table class="admin-table">
+        <thead><tr><th>ID Reservasi</th><th>Pelanggan</th><th>Barberman</th><th>Jadwal</th><th style="text-align:right">Total</th><th style="text-align:center">Status</th><th>Aksi</th></tr></thead>
+        <tbody>
+          ${filtered.length===0?`<tr><td colspan="7"><div class="empty-state">${I.calendarCheck}Tidak ada reservasi ditemukan.</div></td></tr>`:
+          filtered.map(b=>{
+            const g=state.guests.find(x=>x.id===b.guestId);
+            const bar=state.barbers.find(x=>x.id===b.barbermanId);
+            const confirmed=b.status==="Confirmed";
+            return `<tr>
+              <td><span class="mono-id">${b.reservationId}</span></td>
+              <td><div class="cell-main">${g?.name||"—"}</div><div class="cell-sub">${g?.phone||""}</div></td>
+              <td><div class="cell-main">${bar?.name||"—"}</div><div class="cell-sub">${bar?.type||""}</div></td>
+              <td class="cell-sub">${formatSchedule(b.schedule)}</td>
+              <td class="cell-price">${formatIDR(b.totalCost)}</td>
+              <td style="text-align:center"><span class="badge ${confirmed?'pill-avail':'pill-booked'}"><span class="dot ${confirmed?'dot-green':'dot-red'}"></span>${b.status}</span></td>
+              <td><div class="actions-cell">
+                <button class="btn btn-ghost btn-icon" onclick="openBookingDetail('${b.id}')" title="Lihat detail">${I.eye}</button>
+                <button class="btn btn-ghost btn-icon" ${b.status!=='Confirmed'?'disabled':''} onclick="printReceipt('${b.id}')" title="Cetak struk">${I.receipt}</button>
+                <button class="btn btn-ghost btn-icon" onclick="toggleBooking('${b.id}')" title="${confirmed?'Batalkan':'Konfirmasi'}">${confirmed?I.xCircle.replace('stroke="currentColor"','stroke="#fda4af"'):I.checkCircle.replace('stroke="currentColor"','stroke="#6ee7b7"')}</button>
+                <button class="btn btn-ghost btn-icon" onclick="confirmDeleteBooking('${b.id}')" title="Hapus">${I.trash}</button>
+              </div></td>
+            </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>`;
+  }
+  // mobile cards
+  const mc=document.getElementById("mobileCards");
+  if(mc){
+    mc.innerHTML = filtered.length===0 ? `<div class="glass empty-state">${I.calendarClock}Tidak ada reservasi ditemukan.</div>` :
+    filtered.map(b=>{
+      const g=state.guests.find(x=>x.id===b.guestId);
+      const bar=state.barbers.find(x=>x.id===b.barbermanId);
+      const confirmed=b.status==="Confirmed";
+      return `<div class="glass admin-card">
+        <div class="admin-card-top">
+          <div>
+            <span class="mono-id">${b.reservationId}</span>
+            <div class="cell-main" style="font-size:1rem;font-weight:600;margin-top:0.25rem">${g?.name||"—"}</div>
+            <div class="cell-sub">${bar?.name||"—"} · ${formatSchedule(b.schedule)}</div>
+          </div>
+          <span class="badge ${confirmed?'pill-avail':'pill-booked'}"><span class="dot ${confirmed?'dot-green':'dot-red'}"></span>${b.status}</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);padding-top:0.75rem;margin-top:0.75rem">
+          <span class="cell-price">${formatIDR(b.totalCost)}</span>
+          <div style="display:flex;gap:0.25rem">
+            <button class="btn btn-ghost btn-icon" onclick="openBookingDetail('${b.id}')">${I.eye}</button>
+            <button class="btn btn-ghost btn-icon" ${b.status!=='Confirmed'?'disabled':''} onclick="printReceipt('${b.id}')">${I.receipt}</button>
+            <button class="btn btn-outline btn-sm" onclick="toggleBooking('${b.id}')">${confirmed?"Batalkan":"Konfirmasi"}</button>
+            <button class="btn btn-ghost btn-icon" onclick="confirmDeleteBooking('${b.id}')">${I.trash}</button>
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+  }
+}
+function toggleBooking(id){
+  const b=state.bookings.find(x=>x.id===id);
+  if(!b) return;
+  const next=b.status==="Confirmed"?"Canceled":"Confirmed";
+  b.status=next;
+  // sync barber status
+  const barber=state.barbers.find(x=>x.id===b.barbermanId);
+  if(barber){
+    const stillBooked=state.bookings.some(x=>x.barbermanId===barber.id && x.status==="Confirmed");
+    barber.status = (next==="Confirmed"||stillBooked) ? "Booked" : "Available";
+  }
+  saveState();
+  toast(next==="Confirmed"?"Reservasi dikonfirmasi":"Reservasi dibatalkan","success");
+  renderBookingsOnly();
+  renderOverview && false; // skip full re-render
+}
+function confirmDeleteBooking(id){
+  const b=state.bookings.find(x=>x.id===id);
+  if(!b) return;
+  openModal("confirmDelete",{kind:"booking",id,b});
+}
+function doDeleteBooking(id){
+  const b=state.bookings.find(x=>x.id===id);
+  if(!b) return;
+  // delete reviews for this booking
+  state.reviews=state.reviews.filter(r=>r.bookingId!==id);
+  state.bookings=state.bookings.filter(x=>x.id!==id);
+  // free barber
+  const barber=state.barbers.find(x=>x.id===b.barbermanId);
+  if(barber){
+    const stillBooked=state.bookings.some(x=>x.barbermanId===barber.id && x.status==="Confirmed");
+    barber.status=stillBooked?"Booked":"Available";
+  }
+  saveState();
+  toast("Reservasi dihapus","success");
+  closeModal();
+  renderBookingsOnly();
+}
+
+/* ============ BOOKING DETAIL MODAL (admin) ============ */
+function openBookingDetail(id){
+  const b=state.bookings.find(x=>x.id===id);
+  if(!b) return;
+  openModal("bookingDetail",{booking:b});
+}
+function renderBookingDetailModal(d){
+  const b=d.booking;
+  const g=state.guests.find(x=>x.id===b.guestId);
+  const bar=state.barbers.find(x=>x.id===b.barbermanId);
+  const confirmed=b.status==="Confirmed";
+  return `<div class="modal">
+    <button class="modal-close" onclick="closeModal()">${I.xCircle}</button>
+    <div class="modal-hero">
+      <div class="modal-head">
+        <div class="modal-ico">${I.receipt}</div>
+        <div>
+          <div class="modal-title font-display">Detail Reservasi</div>
+          <div class="modal-sub mono-id">${b.reservationId}</div>
+        </div>
+      </div>
+      <span class="badge ${confirmed?'pill-avail':'pill-booked'}" style="position:absolute;top:1.5rem;right:3rem"><span class="dot ${confirmed?'dot-green':'dot-red'}"></span>${b.status}</span>
+    </div>
+    <form class="modal-body" onsubmit="event.preventDefault();saveBookingDetail('${b.id}')">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;border:1px solid var(--border);border-radius:0.75rem;background:oklch(0.21 0.008 70 / 0.3);padding:0.75rem;margin-bottom:1rem">
+        <div><div class="tarif-lbl">${I.user}Pelanggan</div><div class="cell-main" style="font-size:0.8125rem">${g?.name||"—"}</div></div>
+        <div><div class="tarif-lbl">${I.phone}Telepon</div><div class="cell-main" style="font-size:0.8125rem">${g?.phone||"—"}</div></div>
+        <div><div class="tarif-lbl">${I.mail}Email</div><div class="cell-main" style="font-size:0.8125rem;overflow:hidden;text-overflow:ellipsis">${g?.email||"—"}</div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;border:1px solid var(--border);border-radius:0.75rem;background:oklch(0.21 0.008 70 / 0.3);padding:0.625rem 0.75rem;margin-bottom:1rem">
+        <span style="display:flex;align-items:center;gap:0.375rem;color:var(--muted);font-size:0.875rem">${I.scissors}Total Biaya</span>
+        <span class="font-display" style="font-size:1.125rem;font-weight:700;color:var(--primary)">${formatIDR(b.totalCost)}</span>
+      </div>
+      <div class="field"><label class="icon-lbl">${I.calendarClock}Jadwal Potong</label><input id="bd-schedule" type="datetime-local" value="${toLocalDT(new Date(b.schedule))}" required></div>
+      <div class="field"><label class="icon-lbl">${I.scissors}Barberman</label>
+        <select id="bd-barber">
+          ${state.barbers.map(bar=>`<option value="${bar.id}" ${bar.id===b.barbermanId?"selected":""}>#${pad(bar.number)} ${bar.name} · ${formatIDR(bar.price)}</option>`).join("")}
+        </select>
+      </div>
+      <div class="field"><label class="icon-lbl">${I.messageSquare}Catatan</label><textarea id="bd-notes" rows="3" placeholder="Catatan untuk barberman…">${b.notes||""}</textarea></div>
+      <div class="modal-foot" style="padding:0">
+        <button type="button" class="btn btn-outline" ${!confirmed?'disabled':''} onclick="closeModal();printReceipt('${b.id}')">${I.receipt}Cetak Struk</button>
+        <button type="submit" class="btn btn-default">${I.save}Simpan Perubahan</button>
+      </div>
+      <p style="text-align:center;font-size:0.6875rem;color:var(--muted);margin-top:0.75rem">Dibuat ${formatSchedule(b.createdAt)}</p>
+    </form>
+  </div>`;
+}
+function saveBookingDetail(id){
+  const b=state.bookings.find(x=>x.id===id);
+  if(!b) return;
+  const schedule=document.getElementById("bd-schedule").value;
+  const newBarberId=document.getElementById("bd-barber").value;
+  const notes=document.getElementById("bd-notes").value.trim();
+  const d=new Date(schedule);
+  if(isNaN(d.getTime())){toast("Jadwal tidak valid","error");return;}
+  const newBarber=state.barbers.find(x=>x.id===newBarberId);
+  if(!newBarber){toast("Barberman tidak ditemukan","error");return;}
+  const oldBarberId=b.barbermanId;
+  b.schedule=d.getTime();
+  b.notes=notes||null;
+  if(newBarberId!==oldBarberId){
+    b.barbermanId=newBarberId;
+    b.totalCost=newBarber.price;
+    // free old barber if no other confirmed bookings
+    const oldBarber=state.barbers.find(x=>x.id===oldBarberId);
+    if(oldBarber){
+      const stillBooked=state.bookings.some(x=>x.id!==id && x.barbermanId===oldBarberId && x.status==="Confirmed");
+      oldBarber.status=stillBooked?"Booked":"Available";
+    }
+    if(b.status==="Confirmed") newBarber.status="Booked";
+  }
+  saveState();
+  toast("Reservasi diperbarui","success");
+  closeModal();
+  renderBookingsOnly();
+}
+
+/* ============ PRINT RECEIPT ============ */
+function printReceipt(id){
+  const b=state.bookings.find(x=>x.id===id);
+  if(!b){toast("Reservasi tidak ditemukan","error");return;}
+  if(b.status!=="Confirmed"){toast("Hanya reservasi Confirmed yang bisa dicetak","error");return;}
+  const g=state.guests.find(x=>x.id===b.guestId);
+  const bar=state.barbers.find(x=>x.id===b.barbermanId);
+  const w=window.open("","_blank","width=360,height=600");
+  if(!w){toast("Popup diblokir. Izinkan popup untuk mencetak.","error");return;}
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Struk ${b.reservationId}</title>
+  <style>
+    body{font-family:system-ui,-apple-system,sans-serif;background:#fff;color:#111;padding:20px;margin:0}
+    .r{max-width:300px;margin:0 auto}
+    .h{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+    .logo{width:38px;height:38px;border-radius:10px;background:#facc15;color:#111;display:grid;place-items:center;font-weight:800;font-size:20px}
+    .brand{font-size:18px;font-weight:800;font-family:'Space Grotesk',system-ui}
+    .sub{font-size:9px;text-transform:uppercase;letter-spacing:0.14em;color:#6b7280}
+    .title{text-align:center;font-size:11px;letter-spacing:0.22em;color:#6b7280;margin-top:6px}
+    .id{text-align:center;font-size:18px;font-weight:800;letter-spacing:0.06em;font-family:monospace}
+    .div{height:1px;border-top:1px dashed #d1d5db;margin:12px 0}
+    .row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:#374151}
+    .row strong{color:#111;font-weight:600}
+    .total{font-size:15px}.total strong{color:#ca8a04}
+    .ok{color:#16a34a}.no{color:#dc2626}
+    .notes{margin-top:10px;font-size:11px;color:#4b5563}.notes-l{font-weight:600;margin-bottom:2px}.notes-t{font-style:italic}
+    .foot{margin-top:14px;text-align:center;font-size:10px;color:#6b7280;line-height:1.5}
+  </style></head><body>
+  <div class="r">
+    <div class="h"><div class="logo">✂</div><div><div class="brand">FADE&CO</div><div class="sub">Barber Management System</div></div></div>
+    <div class="title">STRUK RESERVASI</div>
+    <div class="id">${b.reservationId}</div>
+    <div class="div"></div>
+    <div class="row"><span>Pelanggan</span><strong>${g?.name||"-"}</strong></div>
+    <div class="row"><span>Telepon</span><strong>${g?.phone||"-"}</strong></div>
+    <div class="row"><span>Barberman</span><strong>#${pad(bar?.number||0)} ${bar?.name||"-"}</strong></div>
+    <div class="row"><span>Layanan</span><strong>${bar?.type||"-"}</strong></div>
+    <div class="row"><span>Jadwal</span><strong>${formatSchedule(b.schedule)}</strong></div>
+    <div class="div"></div>
+    <div class="row total"><span>Total Biaya</span><strong>${formatIDR(b.totalCost)}</strong></div>
+    <div class="row"><span>Status</span><strong class="ok">CONFIRMED ✓</strong></div>
+    ${b.notes?`<div class="notes"><div class="notes-l">Catatan:</div><div class="notes-t">${b.notes}</div></div>`:""}
+    <div class="foot">Tunjukkan struk ini ke kasir saat kedatangan.<br>Terima kasih telah memilih FADE&CO ✂</div>
+  </div>
+  <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`);
+  w.document.close();
+}
+
+/* ============ BARBERS ADMIN ============ */
+function renderBarbers(){
+  const list=state.barbers.slice().sort((a,b)=>a.number-b.number);
+  return `<div class="admin-head-row">
+    <div><h1 class="admin-h1">Manajemen Barberman</h1><div class="admin-h1-sub">Kelola tim, tarif, dan ketersediaan barberman.</div></div>
+    <div class="admin-head-actions"><button class="btn btn-default btn-sm" onclick="openAddBarber()">${I.plus}Tambah</button></div>
+  </div>
+  <div class="grid-barbers">
+    ${list.map(b=>{
+      const r=avgRating(b.id);
+      const avail=b.status==="Available";
+      return `<div class="glass barber-card">
+        <div class="barber-top">
+          <div style="display:flex;align-items:center;gap:0.75rem">
+            <div class="barber-avatar ${avatarClass(b.avatarColor)}">${initials(b.name)}</div>
+            <div>
+              <div class="barber-num">#${pad(b.number)}</div>
+              <div class="barber-name">${b.name}</div>
+              <div class="barber-type ${tierClass(b.type)}">${b.type}</div>
+              ${r.count>0?`<div class="barber-rating">${I.star}<span>${r.avg.toFixed(1)}</span><span class="count">(${r.count})</span></div>`:""}
+            </div>
+          </div>
+          <span class="badge ${avail?'pill-avail':'pill-booked'}"><span class="dot ${avail?'dot-green':'dot-red'}"></span>${b.status}</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);border-radius:0.75rem;background:oklch(0.21 0.008 70 / 0.3);padding:0.625rem 0.75rem;margin-top:1rem">
+          <span class="cell-sub">Tarif</span><span class="font-display" style="font-size:1.125rem;font-weight:700;color:var(--primary)">${formatIDR(b.price)}</span>
+        </div>
+        <div style="display:flex;gap:0.5rem;margin-top:0.75rem">
+          <button class="btn btn-outline btn-sm" style="flex:1" onclick="toggleBarber('${b.id}')">${I.power}${avail?"Tandai Booked":"Bebaskan"}</button>
+          <button class="btn btn-ghost btn-icon" onclick="confirmDeleteBarber('${b.id}')" title="Hapus">${I.trash}</button>
+        </div>
+      </div>`;
+    }).join("")}
+  </div>`;
+}
+function toggleBarber(id){
+  const b=state.barbers.find(x=>x.id===id);
+  if(!b) return;
+  b.status=b.status==="Available"?"Booked":"Available";
+  saveState();
+  toast(b.status==="Available"?"Barberman dibebaskan":"Barberman ditandai booked","success");
+  render();
+}
+function openAddBarber(){ openModal("addBarber",{name:"",type:"Junior Barber",price:"45000",color:"amber"}); }
+function renderAddBarberModal(d){
+  const colors=["amber","rose","emerald","sky","violet"];
+  return `<div class="modal">
+    <button class="modal-close" onclick="closeModal()">${I.xCircle}</button>
+    <div class="modal-hero"><div class="modal-head"><div class="modal-ico">${I.plus}</div><div><div class="modal-title font-display">Tambah Barberman</div><div class="modal-sub">Nomor akan dibuat otomatis.</div></div></div></div>
+    <form class="modal-body" onsubmit="event.preventDefault();submitAddBarber()">
+      <div class="field"><label>Nama</label><input id="ab-name" required placeholder="Nama barberman"></div>
+      <div class="field-grid">
+        <div class="field"><label>Tipe / Tier</label><select id="ab-type"><option>Junior Barber</option><option>Senior Barber</option><option>Master Barber</option></select></div>
+        <div class="field"><label>Harga (Rp)</label><input id="ab-price" type="number" value="45000" min="0"></div>
+      </div>
+      <div class="field"><label>Warna Avatar</label><div class="color-grid" id="colorGrid">
+        ${colors.map(c=>`<button type="button" class="color-opt ${c==='amber'?'selected':''}" data-c="${c}" style="background:linear-gradient(135deg,var(--av-${c}-bg),var(--av-${c}-fg))" onclick="document.querySelectorAll('.color-opt').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')"></button>`).join("")}
+      </div></div>
+      <div class="modal-foot" style="padding:0">
+        <button type="button" class="btn btn-ghost" onclick="closeModal()">Batal</button>
+        <button type="submit" class="btn btn-default">${I.plus}Simpan</button>
+      </div>
+    </form>
+    <style>.av-amber-bg{background:oklch(0.7 0.15 60 / 0.4)}.av-rose-bg{background:oklch(0.7 0.18 15 / 0.4)}.av-emerald-bg{background:oklch(0.7 0.15 145 / 0.4)}.av-sky-bg{background:oklch(0.7 0.15 230 / 0.4)}.av-violet-bg{background:oklch(0.7 0.15 300 / 0.4)}</style>
+  </div>`;
+}
+function submitAddBarber(){
+  const name=document.getElementById("ab-name").value.trim();
+  const type=document.getElementById("ab-type").value;
+  const price=parseInt(document.getElementById("ab-price").value)||0;
+  const colorEl=document.querySelector(".color-opt.selected");
+  const avatarColor=colorEl?.dataset.c||"amber";
+  if(!name){toast("Nama wajib diisi","error");return;}
+  if(price<=0){toast("Harga tidak valid","error");return;}
+  const nextNumber=Math.max(0,...state.barbers.map(b=>b.number))+1;
+  state.barbers.push({id:"b"+Date.now(),number:nextNumber,name,type,price,status:"Available",avatarColor});
+  saveState();
+  toast("Barberman ditambahkan","success");
+  closeModal();
+  render();
+}
+function confirmDeleteBarber(id){
+  const b=state.barbers.find(x=>x.id===id);
+  if(!b) return;
+  openModal("confirmDelete",{kind:"barber",id,b});
+}
+function doDeleteBarber(id){
+  // delete related reviews + bookings
+  state.reviews=state.reviews.filter(r=>r.barbermanId!==id);
+  state.bookings=state.bookings.filter(b=>b.barbermanId!==id);
+  state.barbers=state.barbers.filter(x=>x.id!==id);
+  saveState();
+  toast("Barberman dihapus","success");
+  closeModal();
+  render();
+}
+
+/* ============ GUESTS ADMIN ============ */
+function renderGuests(){
+  const list=state.guests.slice().sort((a,b)=>b.createdAt-a.createdAt);
+  return `<div class="admin-head-row">
+    <div><h1 class="admin-h1">Pelanggan</h1><div class="admin-h1-sub">Daftar pelanggan yang pernah reservasi.</div></div>
+    <div class="admin-head-actions"><button class="btn btn-outline btn-sm" onclick="exportCSV('guests')">${I.download}<span class="hidden sm:inline">CSV</span></button></div>
+  </div>
+  <div class="grid-barbers" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">
+    ${list.length===0?`<div class="glass empty-state" style="grid-column:1/-1">${I.users}Belum ada pelanggan.</div>`:
+    list.map(g=>{
+      const bookings=state.bookings.filter(b=>b.guestId===g.id);
+      const confirmed=bookings.filter(b=>b.status==="Confirmed");
+      const totalSpent=confirmed.reduce((s,b)=>s+b.totalCost,0);
+      return `<div class="glass" style="display:flex;gap:0.75rem;padding:1rem;align-items:flex-start">
+        <div class="barber-avatar ${avatarClass('amber')}" style="width:3rem;height:3rem;background:linear-gradient(135deg,oklch(0.88 0.17 90 / 0.15),transparent);color:var(--primary)">${initials(g.name)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
+            <div class="cell-main" style="font-weight:600;overflow:hidden;text-overflow:ellipsis">${g.name}</div>
+            <span class="badge pill-primary">${bookings.length} reservasi</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:0.25rem;margin-top:0.5rem;font-size:0.75rem;color:var(--muted)">
+            <div style="display:flex;align-items:center;gap:0.375rem;overflow:hidden">${I.mail}<span style="overflow:hidden;text-overflow:ellipsis">${g.email}</span></div>
+            <div style="display:flex;align-items:center;gap:0.375rem">${I.phone}${g.phone}</div>
+          </div>
+          <div style="font-size:0.6875rem;color:var(--muted);margin-top:0.5rem">Terdaftar ${formatSchedule(g.createdAt)}</div>
+        </div>
+      </div>`;
+    }).join("")}
+  </div>`;
+}
+
+/* ============ CONFIRM DELETE MODAL ============ */
+function renderConfirmDeleteModal(d){
+  const isBooking=d.kind==="booking";
+  const title=isBooking?"Hapus reservasi ini?":"Hapus barberman ini?";
+  const desc=isBooking?`Reservasi <span class="mono-id">${d.b.reservationId}</span> akan dihapus permanen.`:`<span style="font-weight:600">${d.b.name}</span> (No. ${d.b.number}) akan dihapus. Reservasi & ulasan terkait juga akan dihapus.`;
+  return `<div class="modal" style="max-width:24rem">
+    <div class="modal-hero"><div class="modal-head"><div class="modal-ico" style="background:oklch(0.65 0.2 25);color:#fff">${I.xCircle}</div><div><div class="modal-title font-display">${title}</div></div></div></div>
+    <div class="modal-body">
+      <p style="font-size:0.875rem;color:var(--muted)">${desc}</p>
+      <div class="modal-foot" style="padding:1rem 0 0">
+        <button class="btn btn-ghost" onclick="closeModal()">Batal</button>
+        <button class="btn" style="background:oklch(0.65 0.2 25);color:#fff" onclick="${isBooking?`doDeleteBooking('${d.id}')`:`doDeleteBarber('${d.id}')`}">${I.trash}Hapus</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ============ CSV EXPORT ============ */
+function exportCSV(kind){
+  let csv=""; let filename="";
+  if(kind==="bookings"){
+    filename=`reservasi-${new Date().toISOString().slice(0,10)}.csv`;
+    csv="ID Reservasi,Nama Pelanggan,Email,Telepon,Barberman,Tipe,Jadwal,Status,Total Biaya (IDR),Catatan,Dibuat Pada\n";
+    state.bookings.slice().sort((a,b)=>b.createdAt-a.createdAt).forEach(b=>{
+      const g=state.guests.find(x=>x.id===b.guestId);
+      const bar=state.barbers.find(x=>x.id===b.barbermanId);
+      csv+=[b.reservationId,g?.name||"",g?.email||"",g?.phone||"",bar?.name||"",bar?.type||"",new Date(b.schedule).toISOString(),b.status,b.totalCost,(b.notes||"").replace(/"/g,'""'),new Date(b.createdAt).toISOString()].map(c=>`"${c}"`).join(",")+"\n";
+    });
+  } else {
+    filename=`pelanggan-${new Date().toISOString().slice(0,10)}.csv`;
+    csv="Nama,Email,Telepon,Total Reservasi,Reservasi Confirmed,Total Belanja (IDR),Terdaftar\n";
+    state.guests.slice().sort((a,b)=>b.createdAt-a.createdAt).forEach(g=>{
+      const bks=state.bookings.filter(b=>b.guestId===g.id);
+      const conf=bks.filter(b=>b.status==="Confirmed");
+      const total=conf.reduce((s,b)=>s+b.totalCost,0);
+      csv+=[g.name,g.email,g.phone,bks.length,conf.length,total,new Date(g.createdAt).toISOString()].map(c=>`"${c}"`).join(",")+"\n";
+    });
+  }
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
+  toast("CSV diekspor: "+filename,"success");
+}
+
+/* ============ MODAL BIND ============ */
+function bindModal(){
+  // comment input char count for review modal
+  const c=document.getElementById("rv-comment");
+  if(c){
+    c.oninput=()=>{document.getElementById("rv-count").textContent=c.value.length;};
+  }
+}
+
+/* ============ INIT ============ */
+render();
+// re-render bookings table on resize (desktop/mobile switch)
+window.addEventListener("resize",()=>{ if(view==="admin" && adminSection==="bookings") renderBookingsOnly(); });
+</script>
+</body>
+</html>
